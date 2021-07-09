@@ -19,7 +19,7 @@ const LoadingComponent = () => {
 
     return(
         <View style={styles.body}>
-            <Text style={styles.text}>Verifying UserName and Password</Text>
+            <Text style={styles.text}>Verifying Username and Password</Text>
             <ActivityIndicator size='large' color='#ffffff' />
         </View>
     )

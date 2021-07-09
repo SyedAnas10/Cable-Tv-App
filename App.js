@@ -72,7 +72,7 @@ const App = () => {
       <Login setUserName={setUserName} setPassword={setPassword} />
     )
   }
-  else if(dataLoad && netError) {
+  else if(netError) {
     return(
       <ErrorComponent />
     )

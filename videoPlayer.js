@@ -10,6 +10,7 @@ import {
   ScrollView,
   StatusBar,
   TouchableHighlight,
+  AppState
 } from 'react-native';
 import Video from 'react-native-video';
 
@@ -83,18 +84,18 @@ class VideoPlayer extends React.Component {
     super(props);
     
     this.state = {
-      dataLoad: true,
       channel: 0,
       showList: false,
       showToolbar: true,
-      loading: false,
-      error: false,
-      errorLog: ''
+      loading: true,
+      shouldPause: false,
+      appState: AppState.currentState
     }
     
     this.list = React.createRef();
     this._enableTVEventHandler = this._enableTVEventHandler.bind(this)
     this._onSelect = this._onSelect.bind(this)
+    this._backHandler = BackHandler.addEventListener('hardwareBackPress', this.backEventListener.bind(this));
   }
     
     
@@ -103,8 +104,6 @@ class VideoPlayer extends React.Component {
   _backHandler;
     
   _enableTVEventHandler() {
-    
-    this._backHandler = BackHandler.addEventListener('hardwareBackPress', this.backEventListener.bind(this));
     
     this._tvEventHandler = new TVEventHandler();
     this._tvEventHandler.enable(this, function(cmp, evt) {
@@ -156,37 +155,41 @@ class VideoPlayer extends React.Component {
     
   componentDidMount() {
     this._enableTVEventHandler();
+    AppState.addEventListener('change', this._handleStateChange)
   }
 
   componentWillUnmount() {
     this._disableTVEventHandler();
+    AppState.removeEventListener('change', this._handleStateChange)
   }  
+
+  _handleStateChange = (nextAppState) => {
+    if ( this.state.appState.match(/inactive|background/) && nextAppState === 'active' ) {
+      this.setState({appState: nextAppState, shouldPause: false});
+      console.log('App has come to the foreground!');
+    } else {
+      this.setState({appState: nextAppState, shouldPause: true});
+      console.log('App has gone to the background!');
+    }
+    console.log(this.state.shouldPause);
+  }
   
   // UTILITY FUNCTIONS
-  onLoad = () => {
+  onLoadStart = () => {
     this.setState({
-      loading: true,
-      error: false,
-      showToolbar: false
+      loading: true
     })
-  }    
-  onError = () => {
-    this.setState({
-      error: true,
-      loading: false,
-      showToolbar: false
-    })
+    console.log('App is now loading');
   }
   onLoadComplete = () => {
     this.setState({
       showToolbar: true,
-      error: false,
       loading: false,
     })
     setTimeout(() => {
       this.setState({
-      showToolbar: false,
-    })
+        showToolbar: false,
+      })
     }, 3000)
   }
     
@@ -217,10 +220,9 @@ class VideoPlayer extends React.Component {
     
     
   // MAIN RENDER FUNCTION
-  render() {  
-    if (this.state.dataLoad) {
-      return (
-        <>
+  render() {
+    return (
+      <>
         
         <SafeAreaView style={styles.parent}>
               
@@ -244,31 +246,24 @@ class VideoPlayer extends React.Component {
               alignSelf:'flex-start', padding:15,
               position: 'absolute', left: 0, bottom: 50, zIndex: 1}}
               >
-                <Text style={{color:'white', fontSize: 40}}>
+                <Text style={{
+                color:'white', fontSize: 40,
+                fontStyle: 'italic', fontWeight: 'bold', textTransform: 'uppercase' 
+                }}>
                   {this.props.ChannelsName[this.state.channel]}
                 </Text>
               </View> : null
             }
                     
             {this.state.loading ? 
-              <View style={{backgroundColor:'black', position:'absolute', padding:10}}>
+              <View style={{position:'absolute', padding:10, zIndex:2}}>
                 <ActivityIndicator size='large' color='#ffffff'/>
               </View> : null 
             }
-                    
-            {this.state.error ?  
-              <View style={{backgroundColor: 'gray', position:'absolute', padding:5 }}>
-                <Text style={{color:'white', fontSize:30}}>Error loading video {'\n'} 
-                  Check your internet connection and try again {'\n'}
-                  {this.state.errorLog}
-                </Text>
-              </View> : null
-            }
     
             <Video source={{uri: this.props.ChannelsList[this.state.channel]}} style={styles.video} 
-            onError={this.onError} onLoadStart={this.onLoad} 
-            onLoad={this.onLoadComplete}
-            minLoadRetryCount={0} resizeMode='stretch'
+            onLoad={this.onLoadComplete} onLoadStart={this.onLoadStart}
+            resizeMode='stretch' paused={this.state.shouldPause}
             bufferConfig={{
               minBufferMs: 15000,
               maxBufferMs: 50000,
@@ -283,9 +278,8 @@ class VideoPlayer extends React.Component {
             </View>
           </SafeAreaView>
       
-        </>
+      </>
       );
-    }
   }
 }
 
